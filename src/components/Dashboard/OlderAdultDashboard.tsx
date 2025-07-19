@@ -8,9 +8,13 @@ import {
   Calendar,
   Plus,
   ShoppingCart,
+  Bell,
+  Activity,
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { supabase } from "../../lib/supabase";
+import { JournalWidget } from "../Journal/JournalWidget";
+import { CallWidget } from "../Calling/CallWidget";
 
 export const OlderAdultDashboard: React.FC = () => {
   const { userProfile } = useAuth();
@@ -305,6 +309,19 @@ export const OlderAdultDashboard: React.FC = () => {
               </Link>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Daily Journal and Calling Widgets */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+        {/* Journal Widget */}
+        <div>
+          <JournalWidget />
+        </div>
+
+        {/* Call Widget */}
+        <div>
+          <CallWidget />
         </div>
       </div>
     </div>

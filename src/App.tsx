@@ -16,10 +16,11 @@ import { AdminDashboard } from "./components/Dashboard/AdminDashboard";
 import { ShopPage } from "./components/Shop/ShopPage";
 import { NotificationCenter } from "./components/Notifications/NotificationCenter";
 import { ProtectedRoute } from "./components/ProtectedRoute";
-import { useAuth } from "./hooks/useAuth";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+import { useAuthContext } from "./contexts/AuthContext";
 
 const DashboardRouter: React.FC = () => {
-  const { userProfile } = useAuth();
+  const { userProfile } = useAuthContext();
 
   if (!userProfile) return null;
 
@@ -50,7 +51,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 };
 
 function App() {
-  const { user, loading } = useAuth();
+  const { user, loading } = useAuthContext();
 
   if (loading) {
     return (
@@ -64,113 +65,115 @@ function App() {
   }
 
   return (
-    <Router>
-      <Routes>
-        {/* Public Routes */}
-        <Route
-          path="/login"
-          element={!user ? <LoginForm /> : <Navigate to="/dashboard" />}
-        />
-        <Route
-          path="/register"
-          element={!user ? <RegisterForm /> : <Navigate to="/dashboard" />}
-        />
+    <ErrorBoundary>
+      <Router>
+        <Routes>
+          {/* Public Routes */}
+          <Route
+            path="/login"
+            element={!user ? <LoginForm /> : <Navigate to="/dashboard" />}
+          />
+          <Route
+            path="/register"
+            element={!user ? <RegisterForm /> : <Navigate to="/dashboard" />}
+          />
 
-        {/* Protected Routes */}
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <Layout>
-                <DashboardRouter />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
+          {/* Protected Routes */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <DashboardRouter />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
 
-        <Route
-          path="/shop"
-          element={
-            <ProtectedRoute>
-              <Layout>
-                <ShopPage />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
+          <Route
+            path="/shop"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <ShopPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
 
-        <Route
-          path="/notifications"
-          element={
-            <ProtectedRoute>
-              <Layout>
-                <NotificationCenter />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
+          <Route
+            path="/notifications"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <NotificationCenter />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
 
-        {/* Admin Routes */}
-        <Route
-          path="/admin"
-          element={
-            <ProtectedRoute requiredRole={["admin"]}>
-              <Layout>
-                <AdminDashboard />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
+          {/* Admin Routes */}
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute requiredRole={["admin"]}>
+                <Layout>
+                  <AdminDashboard />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
 
-        {/* Placeholder routes for development */}
-        <Route
-          path="/messages"
-          element={
-            <ProtectedRoute>
-              <Layout>
-                <div className="max-w-4xl mx-auto px-4 py-8">
-                  <h1 className="text-2xl font-bold text-gray-900 mb-4">
-                    Messages
-                  </h1>
-                  <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
-                    <p className="text-gray-600">
-                      Messages feature coming soon...
-                    </p>
+          {/* Placeholder routes for development */}
+          <Route
+            path="/messages"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <div className="max-w-4xl mx-auto px-4 py-8">
+                    <h1 className="text-2xl font-bold text-gray-900 mb-4">
+                      Messages
+                    </h1>
+                    <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+                      <p className="text-gray-600">
+                        Messages feature coming soon...
+                      </p>
+                    </div>
                   </div>
-                </div>
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
 
-        <Route
-          path="/subscribe"
-          element={
-            <ProtectedRoute requiredRole={["older_adult"]}>
-              <Layout>
-                <div className="max-w-4xl mx-auto px-4 py-8">
-                  <h1 className="text-2xl font-bold text-gray-900 mb-4">
-                    Subscription
-                  </h1>
-                  <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
-                    <p className="text-gray-600">
-                      Subscription management coming soon...
-                    </p>
-                    <p className="text-sm text-gray-500 mt-2">
-                      Integration with Paystack for seamless payments
-                    </p>
+          <Route
+            path="/subscribe"
+            element={
+              <ProtectedRoute requiredRole={["older_adult"]}>
+                <Layout>
+                  <div className="max-w-4xl mx-auto px-4 py-8">
+                    <h1 className="text-2xl font-bold text-gray-900 mb-4">
+                      Subscription
+                    </h1>
+                    <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+                      <p className="text-gray-600">
+                        Subscription management coming soon...
+                      </p>
+                      <p className="text-sm text-gray-500 mt-2">
+                        Integration with Paystack for seamless payments
+                      </p>
+                    </div>
                   </div>
-                </div>
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
 
-        {/* Default redirect */}
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
-    </Router>
+          {/* Default redirect */}
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </Router>
+    </ErrorBoundary>
   );
 }
 

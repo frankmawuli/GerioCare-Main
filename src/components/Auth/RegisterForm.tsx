@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Heart, Eye, EyeOff } from 'lucide-react';
+import { Heart, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 
 const registerSchema = z.object({
@@ -23,8 +23,8 @@ type RegisterFormData = z.infer<typeof registerSchema>;
 
 export const RegisterForm: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const { signUp } = useAuth();
+  const [formLoading, setFormLoading] = useState(false);
+  const { signUp, error: authError } = useAuth();
   const navigate = useNavigate();
 
   const {
@@ -37,7 +37,7 @@ export const RegisterForm: React.FC = () => {
   });
 
   const onSubmit = async (data: RegisterFormData) => {
-    setLoading(true);
+    setFormLoading(true);
     
     try {
       const { error } = await signUp(data.email, data.password, {
@@ -49,14 +49,19 @@ export const RegisterForm: React.FC = () => {
       });
       
       if (error) {
-        setError('email', { message: error.message });
+        // Handle specific error cases
+        if (error.message.includes('email')) {
+          setError('email', { message: 'This email is already registered' });
+        } else {
+          setError('email', { message: error.message });
+        }
       } else {
         navigate('/dashboard');
       }
     } catch (error) {
       setError('email', { message: 'An error occurred. Please try again.' });
     } finally {
-      setLoading(false);
+      setFormLoading(false);
     }
   };
 
@@ -74,6 +79,18 @@ export const RegisterForm: React.FC = () => {
             Create your account to get started
           </p>
         </div>
+        
+        {/* Global Error Display */}
+        {authError && (
+          <div className="bg-red-50 border border-red-200 rounded-md p-4">
+            <div className="flex">
+              <AlertCircle className="h-5 w-5 text-red-400" />
+              <div className="ml-3">
+                <p className="text-sm text-red-800">{authError}</p>
+              </div>
+            </div>
+          </div>
+        )}
         
         <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-4">
@@ -192,7 +209,7 @@ export const RegisterForm: React.FC = () => {
                 {...register('confirmPassword')}
                 type="password"
                 autoComplete="new-password"
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Confirm your password"
               />
               {errors.confirmPassword && (
@@ -204,10 +221,17 @@ export const RegisterForm: React.FC = () => {
           <div>
             <button
               type="submit"
-              disabled={loading}
+              disabled={formLoading}
               className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {loading ? 'Creating account...' : 'Create account'}
+              {formLoading ? (
+                <div className="flex items-center">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                  Creating account...
+                </div>
+              ) : (
+                'Create account'
+              )}
             </button>
           </div>
 

@@ -11,42 +11,19 @@ export const useAuth = () => {
   console.log('🔐 useAuth: Hook initialized with state:', { user: user?.email, userProfile: userProfile?.role, loading });
 
   useEffect(() => {
-    console.log('🔄 useAuth: Effect running');
+    console.log('🔄 useAuth: Initializing Supabase authentication');
     
-    // Check if we're in development mode and skip real auth
-    const isDevelopment = import.meta.env.VITE_DEVELOPMENT_MODE === 'true';
+    // Check for Supabase configuration
     const hasSupabaseConfig = import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY;
     
-    if (isDevelopment || !hasSupabaseConfig) {
-      console.log('🛠️ useAuth: Development mode or missing config, using mock data');
-      
-      // Create mock user for development
-      const mockUser = {
-        id: 'mock-user-123',
-        email: 'test@example.com',
-      } as User;
-      
-      const mockProfile = {
-        id: 'mock-user-123',
-        email: 'test@example.com',
-        role: 'older_adult',
-        first_name: 'John',
-        last_name: 'Doe',
-        is_subscribed: true,
-      } as AppUser;
-      
-      setTimeout(() => {
-        console.log('✅ useAuth: Setting mock data');
-        setUser(mockUser);
-        setUserProfile(mockProfile);
-        setLoading(false);
-      }, 1000); // Simulate loading time
-      
+    if (!hasSupabaseConfig) {
+      console.error('❌ useAuth: Missing Supabase configuration');
+      setLoading(false);
       return;
     }
 
-    // Original Supabase auth logic
-    console.log('🔄 useAuth: Using real Supabase auth');
+    // Initialize Supabase auth
+    console.log('🔄 useAuth: Using Supabase authentication');
     supabase.auth.getSession().then(({ data: { session } }) => {
       console.log('🎫 useAuth: Session retrieved:', session?.user?.email ? 'User found' : 'No user');
       setUser(session?.user ?? null);
@@ -62,11 +39,16 @@ export const useAuth = () => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('🔔 useAuth: Auth state changed:', event, session?.user?.email ? 'User present' : 'No user');
+        console.log('🔔 useAuth: Auth state changed:', event, session?.user?.email ? `User: ${session.user.email}` : 'No user');
+        
+        // Always set the user from the session
         setUser(session?.user ?? null);
+        
         if (session?.user) {
+          console.log('👤 useAuth: User authenticated, fetching profile...');
           await fetchUserProfile(session.user.id);
         } else {
+          console.log('🚪 useAuth: User logged out, clearing profile');
           setUserProfile(null);
           setLoading(false);
         }
@@ -87,12 +69,19 @@ export const useAuth = () => {
 
       if (error) {
         console.error('❌ useAuth: Error fetching user profile:', error);
-      } else {
-        console.log('✅ useAuth: User profile fetched successfully:', data?.role);
+        // If user profile doesn't exist, we should still allow them to be logged in
+        // but they might need to complete their profile setup
+        setUserProfile(null);
+      } else if (data) {
+        console.log('✅ useAuth: User profile fetched successfully:', { id: data.id, role: data.role, email: data.email });
         setUserProfile(data);
+      } else {
+        console.warn('⚠️ useAuth: User profile data is empty');
+        setUserProfile(null);
       }
     } catch (error) {
-      console.error('💥 useAuth: Unexpected error:', error);
+      console.error('💥 useAuth: Unexpected error fetching user profile:', error);
+      setUserProfile(null);
     } finally {
       console.log('🏁 useAuth: Setting loading to false');
       setLoading(false);
@@ -100,11 +89,33 @@ export const useAuth = () => {
   };
 
   const signIn = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { data, error };
+    console.log('🔑 useAuth: Attempting sign in for:', email);
+    setLoading(true);
+    
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      if (error) {
+        console.error('❌ useAuth: Sign in error:', error);
+        setLoading(false);
+        return { data, error };
+      }
+      
+      if (data.user) {
+        console.log('✅ useAuth: Sign in successful, user ID:', data.user.id);
+        // The onAuthStateChange listener will handle setting the user and fetching profile
+        // Don't set loading to false here as the auth state change will handle it
+      }
+      
+      return { data, error };
+    } catch (error) {
+      console.error('💥 useAuth: Unexpected sign in error:', error);
+      setLoading(false);
+      return { data: null, error };
+    }
   };
 
   const signUp = async (email: string, password: string, userData: Partial<AppUser>) => {

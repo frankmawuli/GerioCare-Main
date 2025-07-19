@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   Home, 
@@ -24,10 +24,38 @@ export const Header: React.FC<HeaderProps> = ({
   const { userProfile, signOut } = useAuth();
   const navigate = useNavigate();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close profile menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setShowProfileMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const handleSignOut = async () => {
-    await signOut();
-    navigate('/login');
+    setIsLoggingOut(true);
+    try {
+      const { error } = await signOut();
+      if (error) {
+        console.error('Logout error:', error);
+        // Still redirect even if there's an error
+      }
+      navigate('/login');
+    } catch (error) {
+      console.error('Unexpected logout error:', error);
+      navigate('/login');
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
 
   const getRoleBadgeColor = (role: string) => {
@@ -96,10 +124,11 @@ export const Header: React.FC<HeaderProps> = ({
             </Link>
 
             {/* User Profile */}
-            <div className="relative">
+            <div className="relative" ref={profileMenuRef}>
               <button
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
                 className="flex items-center space-x-2 text-gray-700 hover:text-blue-600 transition-colors"
+                disabled={isLoggingOut}
               >
                 <User className="h-6 w-6" />
                 <span className="hidden md:block">
@@ -148,10 +177,20 @@ export const Header: React.FC<HeaderProps> = ({
                         setShowProfileMenu(false);
                         handleSignOut();
                       }}
-                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md flex items-center space-x-2"
+                      disabled={isLoggingOut}
+                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <LogOut className="h-4 w-4" />
-                      <span>Sign Out</span>
+                      {isLoggingOut ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
+                          <span>Signing out...</span>
+                        </>
+                      ) : (
+                        <>
+                          <LogOut className="h-4 w-4" />
+                          <span>Sign Out</span>
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>
