@@ -72,7 +72,7 @@ function App() {
           {/* Public Routes */}
           <Route
             path="/login"
-            element={!user ? <LoginForm /> : <Navigate to="/dashboard" />}
+            element={<LoginForm />}
           />
           <Route
             path="/register"

@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, Navigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Heart, Eye, EyeOff, AlertCircle } from 'lucide-react';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuthContext } from '../../contexts/AuthContext';
 
 const registerSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -24,8 +24,14 @@ type RegisterFormData = z.infer<typeof registerSchema>;
 export const RegisterForm: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
-  const { signUp, error: authError } = useAuth();
+  const { signUp, user, userProfile, loading } = useAuthContext();
   const navigate = useNavigate();
+
+  // Redirect if already authenticated
+  if (!loading && user && userProfile) {
+    console.log('🔄 RegisterForm: User already authenticated, redirecting to dashboard');
+    return <Navigate to="/dashboard" replace />;
+  }
 
   const {
     register,
@@ -57,11 +63,14 @@ export const RegisterForm: React.FC = () => {
         } else if (error.message?.includes('password')) {
           setError('password', { message: 'Password does not meet requirements' });
         } else {
-          setError('email', { message: error.message || 'Registration failed. Please try again.' });
+          setError('email', { message: String(error.message) || 'Registration failed. Please try again.' });
         }
       } else {
         console.log('✅ Registration successful, redirecting to dashboard');
-        navigate('/dashboard');
+        // Navigate to dashboard after successful registration
+        setTimeout(() => {
+          navigate('/dashboard', { replace: true });
+        }, 100);
       }
     } catch (error) {
       console.error('💥 Registration error:', error);
@@ -85,18 +94,6 @@ export const RegisterForm: React.FC = () => {
             Create your account to get started
           </p>
         </div>
-        
-        {/* Global Error Display */}
-        {authError && (
-          <div className="bg-red-50 border border-red-200 rounded-md p-4">
-            <div className="flex">
-              <AlertCircle className="h-5 w-5 text-red-400" />
-              <div className="ml-3">
-                <p className="text-sm text-red-800">{authError}</p>
-              </div>
-            </div>
-          </div>
-        )}
         
         <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-4">

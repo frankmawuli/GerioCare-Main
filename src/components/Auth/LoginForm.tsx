@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, Navigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -17,8 +17,14 @@ export const LoginForm: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
-  const { signIn } = useAuthContext();
+  const { signIn, user, userProfile, loading } = useAuthContext();
   const navigate = useNavigate();
+
+  // Redirect if already authenticated
+  if (!loading && user && userProfile) {
+    console.log('🔄 LoginForm: User already authenticated, redirecting to dashboard');
+    return <Navigate to="/dashboard" replace />;
+  }
 
   const {
     register,
@@ -52,8 +58,10 @@ export const LoginForm: React.FC = () => {
         }
       } else {
         console.log("Login successful, navigating to dashboard");
-        // Don't navigate immediately - let the auth state change handle it
-        // This prevents race conditions with loading states
+        // Navigate to dashboard after successful login
+        setTimeout(() => {
+          navigate('/dashboard', { replace: true });
+        }, 100);
       }
     } catch (err) {
       console.error("Unexpected login error:", err);

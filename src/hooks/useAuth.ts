@@ -91,7 +91,9 @@ export const useAuth = () => {
         // If user profile doesn't exist (404), this is expected for new users
         if (error.code === 'PGRST116') {
           console.log('👤 useAuth: User profile not found - this is normal for new users');
-          setUserProfile(null);
+          // Create a basic profile for users who don't have one
+          console.log('🔧 useAuth: Creating basic user profile...');
+          await createBasicUserProfile(userId);
         } else {
           console.error('❌ useAuth: Database error fetching user profile:', error);
           setUserProfile(null);
@@ -109,6 +111,45 @@ export const useAuth = () => {
     } finally {
       console.log('🏁 useAuth: Setting loading to false');
       setLoading(false);
+    }
+  };
+
+  const createBasicUserProfile = async (userId: string) => {
+    try {
+      // Get user email from auth
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) {
+        console.error('❌ useAuth: No user email found for profile creation');
+        setLoading(false);
+        return;
+      }
+
+      const emailPrefix = user.email.split('@')[0];
+      const basicProfile = {
+        id: userId,
+        email: user.email,
+        role: 'older_adult' as const,
+        first_name: emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1),
+        last_name: 'User',
+        is_subscribed: false,
+      };
+
+      const { data, error } = await supabase
+        .from('users')
+        .insert(basicProfile)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ useAuth: Error creating basic user profile:', error);
+        setUserProfile(null);
+      } else {
+        console.log('✅ useAuth: Basic user profile created:', data);
+        setUserProfile(data);
+      }
+    } catch (error) {
+      console.error('💥 useAuth: Error in createBasicUserProfile:', error);
+      setUserProfile(null);
     }
   };
 
@@ -131,7 +172,8 @@ export const useAuth = () => {
       if (data.user) {
         console.log('✅ useAuth: Sign in successful, user ID:', data.user.id);
         // The onAuthStateChange listener will handle setting the user and fetching profile
-        // Don't set loading to false here as the auth state change will handle it
+        // Set user immediately to prevent UI flicker
+        setUser(data.user);
       }
       
       return { data, error };

@@ -44,8 +44,15 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   // If user exists but no profile, redirect to complete registration
   if (!userProfile) {
-    console.log("👤 ProtectedRoute: User exists but no profile, redirecting to register");
-    return <Navigate to="/register" replace />;
+    console.log("👤 ProtectedRoute: User exists but no profile, showing loading");
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Setting up your profile...</p>
+        </div>
+      </div>
+    );
   }
   if (requiredRole && !requiredRole.includes(userProfile.role)) {
     console.log(
