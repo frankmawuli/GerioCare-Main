@@ -35,14 +35,18 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
-  if (!user || !userProfile) {
+  if (!user) {
     console.log(
-      "❌ ProtectedRoute: No user or userProfile, redirecting to login",
-      { hasUser: !!user, hasProfile: !!userProfile }
+      "❌ ProtectedRoute: No authenticated user, redirecting to login"
     );
     return <Navigate to="/login" replace />;
   }
 
+  // If user exists but no profile, redirect to complete registration
+  if (!userProfile) {
+    console.log("👤 ProtectedRoute: User exists but no profile, redirecting to register");
+    return <Navigate to="/register" replace />;
+  }
   if (requiredRole && !requiredRole.includes(userProfile.role)) {
     console.log(
       "🚫 ProtectedRoute: Role not authorized, redirecting to login. Required:",
@@ -50,7 +54,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       "User:",
       userProfile.role
     );
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   if (

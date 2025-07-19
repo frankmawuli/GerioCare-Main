@@ -49,11 +49,15 @@ export const RegisterForm: React.FC = () => {
       });
       
       if (error) {
+        console.error('❌ Registration error:', error);
+        
         // Handle specific error cases
-        if (error.message.includes('email')) {
+        if (error.message?.includes('email') || error.message?.includes('already registered')) {
           setError('email', { message: 'This email is already registered' });
+        } else if (error.message?.includes('password')) {
+          setError('password', { message: 'Password does not meet requirements' });
         } else {
-          setError('email', { message: error.message });
+          setError('email', { message: error.message || 'Registration failed. Please try again.' });
         }
       } else {
         console.log('✅ Registration successful, redirecting to dashboard');

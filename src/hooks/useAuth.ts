@@ -22,26 +22,14 @@ export const useAuth = () => {
       return;
     }
 
-    // Initialize Supabase auth
-    console.log('🔄 useAuth: Using Supabase authentication');
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('🎫 useAuth: Session retrieved:', session?.user?.email ? 'User found' : 'No user');
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        console.log('👤 useAuth: User found, fetching profile for:', session.user.id);
-        fetchUserProfile(session.user.id);
-      } else {
-        console.log('❌ useAuth: No session, setting loading to false');
-        setLoading(false);
-      }
-    });
+    // Initialize auth state
+    initializeAuth();
 
-    // Listen for auth changes
+    // Listen for auth changes with realtime updates
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('🔔 useAuth: Auth state changed:', event, session?.user?.email ? `User: ${session.user.email}` : 'No user');
         
-        // Always set the user from the session
         setUser(session?.user ?? null);
         
         if (session?.user) {
@@ -55,8 +43,38 @@ export const useAuth = () => {
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      console.log('🧹 useAuth: Cleaning up auth subscription');
+      subscription.unsubscribe();
+    };
   }, []);
+
+  const initializeAuth = async () => {
+    try {
+      console.log('🎫 useAuth: Getting initial session...');
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        console.error('❌ useAuth: Error getting session:', error);
+        setLoading(false);
+        return;
+      }
+
+      console.log('🎫 useAuth: Session retrieved:', session?.user?.email ? 'User found' : 'No user');
+      setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        console.log('👤 useAuth: User found, fetching profile for:', session.user.id);
+        await fetchUserProfile(session.user.id);
+      } else {
+        console.log('❌ useAuth: No session, setting loading to false');
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error('💥 useAuth: Error initializing auth:', error);
+      setLoading(false);
+    }
+  };
 
   const fetchUserProfile = async (userId: string) => {
     console.log('📊 useAuth: Fetching user profile for ID:', userId);
@@ -70,10 +88,10 @@ export const useAuth = () => {
       if (error) {
         console.error('❌ useAuth: Error fetching user profile:', error);
         
-        // If user profile doesn't exist (404), create a basic profile
+        // If user profile doesn't exist (404), this is expected for new users
         if (error.code === 'PGRST116') {
-          console.log('👤 useAuth: User profile not found, creating basic profile...');
-          await createBasicUserProfile(userId);
+          console.log('👤 useAuth: User profile not found - this is normal for new users');
+          setUserProfile(null);
         } else {
           console.error('❌ useAuth: Database error fetching user profile:', error);
           setUserProfile(null);
@@ -91,46 +109,6 @@ export const useAuth = () => {
     } finally {
       console.log('🏁 useAuth: Setting loading to false');
       setLoading(false);
-    }
-  };
-
-  const createBasicUserProfile = async (userId: string) => {
-    try {
-      // Get user email from Supabase auth
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user?.email) {
-        console.error('❌ useAuth: No user email found for profile creation');
-        setUserProfile(null);
-        return;
-      }
-
-      // Create basic user profile
-      const basicProfile = {
-        id: userId,
-        email: user.email,
-        role: 'older_adult' as const,
-        first_name: user.email.split('@')[0], // Use email prefix as temporary first name
-        last_name: 'User', // Temporary last name
-        is_subscribed: false,
-      };
-
-      const { data, error } = await supabase
-        .from('users')
-        .insert(basicProfile)
-        .select()
-        .single();
-
-      if (error) {
-        console.error('❌ useAuth: Error creating user profile:', error);
-        setUserProfile(null);
-      } else {
-        console.log('✅ useAuth: Basic user profile created:', data);
-        setUserProfile(data);
-      }
-    } catch (error) {
-      console.error('💥 useAuth: Unexpected error creating user profile:', error);
-      setUserProfile(null);
     }
   };
 
@@ -165,7 +143,11 @@ export const useAuth = () => {
   };
 
   const signUp = async (email: string, password: string, userData: Partial<AppUser>) => {
+    console.log('📝 useAuth: Attempting sign up for:', email);
+    setLoading(true);
+    
     try {
+      // First, create the auth user
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -173,38 +155,69 @@ export const useAuth = () => {
 
       if (error) {
         console.error('❌ useAuth: Sign up error:', error);
+        setLoading(false);
         return { data, error };
       }
 
       if (data.user) {
         console.log('✅ useAuth: Sign up successful, creating user profile...');
         
-        const { error: profileError } = await supabase
+        // Create user profile in the users table
+        const { data: profileData, error: profileError } = await supabase
           .from('users')
           .insert({
             id: data.user.id,
             email,
-            ...userData,
-          });
+            role: userData.role || 'older_adult',
+            first_name: userData.first_name || '',
+            last_name: userData.last_name || '',
+            phone: userData.phone || null,
+            is_subscribed: userData.is_subscribed || false,
+          })
+          .select()
+          .single();
 
         if (profileError) {
           console.error('❌ useAuth: Error creating user profile:', profileError);
+          setLoading(false);
           return { data: null, error: profileError };
         }
         
-        console.log('✅ useAuth: User profile created successfully');
+        console.log('✅ useAuth: User profile created successfully:', profileData);
+        setUserProfile(profileData);
       }
 
+      setLoading(false);
       return { data, error };
     } catch (error) {
       console.error('💥 useAuth: Unexpected sign up error:', error);
+      setLoading(false);
       return { data: null, error };
     }
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    return { error };
+    console.log('🚪 useAuth: Attempting sign out');
+    setLoading(true);
+    
+    try {
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error('❌ useAuth: Sign out error:', error);
+      } else {
+        console.log('✅ useAuth: Sign out successful');
+        setUser(null);
+        setUserProfile(null);
+      }
+      
+      setLoading(false);
+      return { error };
+    } catch (error) {
+      console.error('💥 useAuth: Unexpected sign out error:', error);
+      setLoading(false);
+      return { error };
+    }
   };
 
   return {

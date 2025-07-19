@@ -38,14 +38,22 @@ export const LoginForm: React.FC = () => {
 
       if (error) {
         console.error("Login error:", error);
-        // Set a user-friendly error message
-        setAuthError("Invalid email or password. Please try again.");
-        setError("email", { message: "Invalid email or password" });
-        setError("password", { message: "Invalid email or password" });
+        
+        // Handle specific error cases
+        if (error.message?.includes('Invalid login credentials')) {
+          setAuthError("Invalid email or password. Please check your credentials.");
+          setError("email", { message: "Invalid email or password" });
+          setError("password", { message: "Invalid email or password" });
+        } else if (error.message?.includes('Email not confirmed')) {
+          setAuthError("Please check your email and confirm your account before signing in.");
+        } else {
+          setAuthError(error.message || "An error occurred. Please try again.");
+          setError("email", { message: error.message || "An error occurred" });
+        }
       } else {
-        // Login successful - navigation will be handled by auth state change
         console.log("Login successful, navigating to dashboard");
-        navigate("/dashboard");
+        // Don't navigate immediately - let the auth state change handle it
+        // This prevents race conditions with loading states
       }
     } catch (err) {
       console.error("Unexpected login error:", err);
