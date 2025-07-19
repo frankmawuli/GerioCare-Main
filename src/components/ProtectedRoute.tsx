@@ -37,7 +37,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   if (!user || !userProfile) {
     console.log(
-      "❌ ProtectedRoute: No user or userProfile, redirecting to login"
+      "❌ ProtectedRoute: No user or userProfile, redirecting to login",
+      { hasUser: !!user, hasProfile: !!userProfile }
     );
     return <Navigate to="/login" replace />;
   }

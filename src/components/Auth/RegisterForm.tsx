@@ -56,9 +56,11 @@ export const RegisterForm: React.FC = () => {
           setError('email', { message: error.message });
         }
       } else {
+        console.log('✅ Registration successful, redirecting to dashboard');
         navigate('/dashboard');
       }
     } catch (error) {
+      console.error('💥 Registration error:', error);
       setError('email', { message: 'An error occurred. Please try again.' });
     } finally {
       setFormLoading(false);

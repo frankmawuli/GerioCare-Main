@@ -69,9 +69,15 @@ export const useAuth = () => {
 
       if (error) {
         console.error('❌ useAuth: Error fetching user profile:', error);
-        // If user profile doesn't exist, we should still allow them to be logged in
-        // but they might need to complete their profile setup
-        setUserProfile(null);
+        
+        // If user profile doesn't exist (404), create a basic profile
+        if (error.code === 'PGRST116') {
+          console.log('👤 useAuth: User profile not found, creating basic profile...');
+          await createBasicUserProfile(userId);
+        } else {
+          console.error('❌ useAuth: Database error fetching user profile:', error);
+          setUserProfile(null);
+        }
       } else if (data) {
         console.log('✅ useAuth: User profile fetched successfully:', { id: data.id, role: data.role, email: data.email });
         setUserProfile(data);
@@ -85,6 +91,46 @@ export const useAuth = () => {
     } finally {
       console.log('🏁 useAuth: Setting loading to false');
       setLoading(false);
+    }
+  };
+
+  const createBasicUserProfile = async (userId: string) => {
+    try {
+      // Get user email from Supabase auth
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user?.email) {
+        console.error('❌ useAuth: No user email found for profile creation');
+        setUserProfile(null);
+        return;
+      }
+
+      // Create basic user profile
+      const basicProfile = {
+        id: userId,
+        email: user.email,
+        role: 'older_adult' as const,
+        first_name: user.email.split('@')[0], // Use email prefix as temporary first name
+        last_name: 'User', // Temporary last name
+        is_subscribed: false,
+      };
+
+      const { data, error } = await supabase
+        .from('users')
+        .insert(basicProfile)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ useAuth: Error creating user profile:', error);
+        setUserProfile(null);
+      } else {
+        console.log('✅ useAuth: Basic user profile created:', data);
+        setUserProfile(data);
+      }
+    } catch (error) {
+      console.error('💥 useAuth: Unexpected error creating user profile:', error);
+      setUserProfile(null);
     }
   };
 
@@ -119,27 +165,41 @@ export const useAuth = () => {
   };
 
   const signUp = async (email: string, password: string, userData: Partial<AppUser>) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
 
-    if (data.user && !error) {
-      const { error: profileError } = await supabase
-        .from('users')
-        .insert({
-          id: data.user.id,
-          email,
-          ...userData,
-        });
-
-      if (profileError) {
-        console.error('Error creating user profile:', profileError);
-        return { data: null, error: profileError };
+      if (error) {
+        console.error('❌ useAuth: Sign up error:', error);
+        return { data, error };
       }
-    }
 
-    return { data, error };
+      if (data.user) {
+        console.log('✅ useAuth: Sign up successful, creating user profile...');
+        
+        const { error: profileError } = await supabase
+          .from('users')
+          .insert({
+            id: data.user.id,
+            email,
+            ...userData,
+          });
+
+        if (profileError) {
+          console.error('❌ useAuth: Error creating user profile:', profileError);
+          return { data: null, error: profileError };
+        }
+        
+        console.log('✅ useAuth: User profile created successfully');
+      }
+
+      return { data, error };
+    } catch (error) {
+      console.error('💥 useAuth: Unexpected sign up error:', error);
+      return { data: null, error };
+    }
   };
 
   const signOut = async () => {
